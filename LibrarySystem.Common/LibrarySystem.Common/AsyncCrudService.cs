@@ -1,93 +1,76 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Concurrent;
+﻿using LibrarySystem.Infrastructure.Repositories;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text.Json;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace LibrarySystem.Common
 {
     public class AsyncCrudService<T> : ICrudServiceAsync<T> where T : class
     {
-        private readonly ConcurrentDictionary<Guid, T> _storage = new();
-        private readonly Func<T, Guid> _getId;
-        private readonly SemaphoreSlim _fileSemaphore = new(1, 1); // для сохранения файла
-        private readonly object _lock = new(); // для защиты операций с коллекцией
+        private readonly IRepository<T> _repository;
 
-        public AsyncCrudService(Func<T, Guid> getId)
+        public AsyncCrudService(IRepository<T> repository)
         {
-            _getId = getId;
+            _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         }
 
         public async Task<bool> CreateAsync(T element)
         {
-            var id = _getId(element);
-            lock (_lock)
+            try
             {
-                return _storage.TryAdd(id, element);
+                await _repository.AddAsync(element);
+                return true;
+            }
+            catch
+            {
+                return false;
             }
         }
 
-        public async Task<T> ReadAsync(Guid id)
+        public async Task<T> ReadAsync(int id)
         {
-            _storage.TryGetValue(id, out var value);
-            return value;
+            return await _repository.GetByIdAsync(id);
         }
 
         public async Task<IEnumerable<T>> ReadAllAsync()
         {
-            return _storage.Values.ToList();
+            return await _repository.GetAllAsync();
         }
 
         public async Task<IEnumerable<T>> ReadAllAsync(int page, int amount)
         {
-            return _storage.Values
-                .Skip((page - 1) * amount)
-                .Take(amount)
-                .ToList();
+            var allItems = await _repository.GetAllAsync();
+            return allItems.Skip((page - 1) * amount).Take(amount);
         }
 
         public async Task<bool> UpdateAsync(T element)
         {
-            var id = _getId(element);
-            lock (_lock)
+            try
             {
-                _storage[id] = element;
+                await _repository.UpdateAsync(element);
                 return true;
+            }
+            catch
+            {
+                return false;
             }
         }
 
         public async Task<bool> RemoveAsync(T element)
         {
-            var id = _getId(element);
-            lock (_lock)
+            try
             {
-                return _storage.TryRemove(id, out _);
+                await _repository.DeleteAsync(element);
+                return true;
+            }
+            catch
+            {
+                return false;
             }
         }
 
         public async Task<bool> SaveAsync()
         {
-            await _fileSemaphore.WaitAsync();
-            try
-            {
-                var json = JsonSerializer.Serialize(_storage.Values, new JsonSerializerOptions
-                {
-                    WriteIndented = true
-                });
-                await File.WriteAllTextAsync("storage.json", json);
-                return true;
-            }
-            finally
-            {
-                _fileSemaphore.Release();
-            }
+            return true;
         }
-
-        public IEnumerator<T> GetEnumerator() => _storage.Values.GetEnumerator();
-        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 }

@@ -1,9 +1,12 @@
-﻿using System;
-using System.Linq;
+﻿using LibrarySystem.Common;
+using LibrarySystem.Infrastructure;
+using LibrarySystem.Infrastructure.Models;
+using LibrarySystem.Infrastructure.Repositories;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.IO;
 using System.Threading.Tasks;
-using System.Threading;
-using System.Collections.Generic;
-using LibrarySystem.Common;
+using System.Text;
 
 namespace LibrarySystem.ConsoleApp
 {
@@ -11,65 +14,91 @@ namespace LibrarySystem.ConsoleApp
     {
         static async Task Main(string[] args)
         {
-            var bookService = new AsyncCrudService<Book>(b => b.Id);
+            // Настройка кодировки консоли для корректного отображения кириллицы
+            Console.OutputEncoding = Encoding.UTF8;
+            Console.InputEncoding = Encoding.UTF8;
 
-            Console.WriteLine("Создание 1000 книг параллельно...");
-
-            var tasks = new List<Task>();
-            var semaphore = new SemaphoreSlim(20); // ограничиваем кол-во потоков
-
-            for (int i = 0; i < 1000; i++)
+            try
             {
-                await semaphore.WaitAsync();
-                tasks.Add(Task.Run(async () =>
+                // 1. Определяем путь к БД
+                var dbPath = Path.Combine(Directory.GetCurrentDirectory(), "library.db");
+                Console.WriteLine($"Путь к файлу БД: {dbPath}");
+
+                // 2. Настраиваем подключение (без избыточного логирования)
+                var options = new DbContextOptionsBuilder<LibrarySystemContext>()
+                    .UseSqlite($"Data Source={dbPath}")
+                    .Options;
+
+                // 3. Создаем/пересоздаем БД
+                using (var context = new LibrarySystemContext(options))
                 {
-                    try
+                    Console.WriteLine("Инициализация БД...");
+                    await context.Database.EnsureDeletedAsync();
+                    await context.Database.EnsureCreatedAsync();
+                    Console.WriteLine("БД успешно инициализирована\n");
+
+                    var repository = new Repository<KnyhaModel>(context);
+                    var service = new AsyncCrudService<KnyhaModel>(repository);
+
+                    // Добавляем библиотеку
+                    var library = new LibraryModel { Nazva = "Центральна бібліотека" };
+                    context.Libraries.Add(library);
+                    await context.SaveChangesAsync();
+                    Console.WriteLine($"Добавлена библиотека: {library.Nazva} (ID: {library.Id})");
+
+                    // Добавляем книги
+                    var books = new[]
                     {
-                        var book = Book.CreateNew();
-                        await bookService.CreateAsync(book);
-                    }
-                    finally
+                        new KnyhaModel
+                        {
+                            Nazva = "Гіперпланування на C#",
+                            Rik = 2023,
+                            Avtor = "Іван Іванов",
+                            LibraryId = library.Id
+                        },
+                        new KnyhaModel
+                        {
+                            Nazva = "Мова програмування",
+                            Rik = 2020,
+                            Avtor = "Марія Петрова",
+                            LibraryId = library.Id
+                        }
+                    };
+
+                    foreach (var book in books)
                     {
-                        semaphore.Release();
+                        await service.CreateAsync(book);
                     }
-                }));
+                    Console.WriteLine($"Добавлено {books.Length} книги\n");
+
+                    // Выводим список книг
+                    Console.WriteLine("Список книг:");
+                    var allBooks = await service.ReadAllAsync();
+                    foreach (var book in allBooks)
+                    {
+                        Console.WriteLine($"- {book.Nazva} ({book.Rik}), автор: {book.Avtor}");
+                    }
+
+                    // Статистика
+                    Console.WriteLine($"\nВсего библиотек: {await context.Libraries.CountAsync()}");
+                    Console.WriteLine($"Всего книг: {await context.Knyhy.CountAsync()}");
+                }
             }
-
-            await Task.WhenAll(tasks);
-            Console.WriteLine("✅ Книги успешно созданы!");
-
-            var allBooks = await bookService.ReadAllAsync();
-
-            Console.WriteLine($"\n📊 Минимальный год: {allBooks.Min(b => b.Год)}");
-            Console.WriteLine($"📊 Максимальный год: {allBooks.Max(b => b.Год)}");
-            Console.WriteLine($"📊 Средний год: {allBooks.Average(b => b.Год)}");
-
-            Console.WriteLine("\n📄 Пагинация (первая страница, по 5 книг):");
-            var page1 = await bookService.ReadAllAsync(1, 5);
-            foreach (var book in page1)
+            catch (Exception ex)
             {
-                Console.WriteLine(book.ToString());
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"\nОшибка: {ex.Message}");
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"Детали: {ex.InnerException.Message}");
+                }
+                Console.ResetColor();
             }
-
-            await bookService.SaveAsync();
-            Console.WriteLine("\n💾 Коллекция сохранена в файл storage.json");
-
-            // AutoResetEvent — пример
-            var resetEvent = new AutoResetEvent(false);
-            Console.WriteLine("\nНажмите Enter, чтобы продолжить и увидеть сообщение из другого потока...");
-            Console.ReadLine();
-
-            Task.Run(() =>
+            finally
             {
-                resetEvent.WaitOne(); // ждёт сигнала
-                Console.WriteLine("🔔 Поток: получен сигнал и выполнено действие.");
-            });
-
-            Thread.Sleep(1000);
-            resetEvent.Set(); // подаём сигнал
-
-            Console.WriteLine("\nНажмите любую клавишу для завершения...");
-            Console.ReadKey();
+                Console.WriteLine("\nНатисніть будь-яку клавішу, щоб завершити...");
+                Console.ReadKey();
+            }
         }
     }
 }

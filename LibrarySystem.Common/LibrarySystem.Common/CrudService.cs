@@ -1,50 +1,76 @@
-﻿using System;
+﻿using LibrarySystem.Infrastructure.Repositories;
 using System.Collections.Generic;
-using System.Linq;
+using System.Threading.Tasks;
 
 namespace LibrarySystem.Common
 {
-    public interface ICrudService<T>
+    public class CrudServiceAsync<T> : ICrudServiceAsync<T> where T : class
     {
-        void Create(T element);
-        T Read(Guid id);
-        IEnumerable<T> ReadAll();
-        void Update(T element);
-        void Remove(T element);
-    }
+        private readonly IRepository<T> _repository;
 
-    public class CrudService<T> : ICrudService<T> where T : class
-    {
-        private List<T> _items = new List<T>();
-
-        public void Create(T element)
+        public CrudServiceAsync(IRepository<T> repository)
         {
-            _items.Add(element);
+            _repository = repository;
         }
 
-        public T Read(Guid id)
+        public async Task<bool> CreateAsync(T element)
         {
-            return _items.FirstOrDefault(item => (item as dynamic).Id == id);
-        }
-
-        public IEnumerable<T> ReadAll()
-        {
-            return _items.AsReadOnly();
-        }
-
-        public void Update(T element)
-        {
-            var existing = Read((element as dynamic).Id);
-            if (existing != null)
+            try
             {
-                int index = _items.IndexOf(existing);
-                _items[index] = element;
+                await _repository.AddAsync(element);
+                return true;
+            }
+            catch
+            {
+                return false;
             }
         }
 
-        public void Remove(T element)
+        public async Task<T> ReadAsync(int id)
         {
-            _items.Remove(element);
+            return await _repository.GetByIdAsync(id);
+        }
+
+        public async Task<IEnumerable<T>> ReadAllAsync()
+        {
+            return await _repository.GetAllAsync();
+        }
+
+        public async Task<IEnumerable<T>> ReadAllAsync(int page, int amount)
+        {
+            var allItems = await _repository.GetAllAsync();
+            return allItems.Skip((page - 1) * amount).Take(amount);
+        }
+
+        public async Task<bool> UpdateAsync(T element)
+        {
+            try
+            {
+                await _repository.UpdateAsync(element);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public async Task<bool> RemoveAsync(T element)
+        {
+            try
+            {
+                await _repository.DeleteAsync(element);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public async Task<bool> SaveAsync()
+        {
+            return true;
         }
     }
 }
