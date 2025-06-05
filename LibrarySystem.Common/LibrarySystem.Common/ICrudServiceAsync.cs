@@ -1,16 +1,45 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
+using LibrarySystem.Common;
 
 namespace LibrarySystem.Common
 {
-    public interface ICrudServiceAsync<T>
+    public class CrudServiceAsync<T> : ICrudServiceAsync<T> where T : class
     {
-        Task<bool> CreateAsync(T element);
-        Task<T> ReadAsync(int id); // Переконайтеся, що метод приймає int
-        Task<IEnumerable<T>> ReadAllAsync();
-        Task<IEnumerable<T>> ReadAllAsync(int page, int amount);
-        Task<bool> UpdateAsync(T element);
-        Task<bool> RemoveAsync(T element);
-        Task<bool> SaveAsync();
+        public Task<bool> CreateAsync(T element)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<T> ReadAsync(Guid id)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<IEnumerable<T>> ReadAllAsync()
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<IEnumerable<T>> ReadAllAsync(int page, int amount)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<bool> UpdateAsync(T element)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<bool> RemoveAsync(T element)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<bool> SaveAsync()
+        {
+            throw new NotImplementedException();
+        }
     }
 }

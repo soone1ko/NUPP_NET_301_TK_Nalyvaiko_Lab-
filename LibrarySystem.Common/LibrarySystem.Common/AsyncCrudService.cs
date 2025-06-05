@@ -1,76 +1,51 @@
-﻿using LibrarySystem.Infrastructure.Repositories;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using LibrarySystem.Common; // <-- здесь лежит ICrudServiceAsync<T>
 
 namespace LibrarySystem.Common
 {
     public class AsyncCrudService<T> : ICrudServiceAsync<T> where T : class
     {
-        private readonly IRepository<T> _repository;
-
-        public AsyncCrudService(IRepository<T> repository)
+        // Здесь вы можете держать ссылку на репозиторий или на DbContext, 
+        // но так как класс лежит в LibrarySystem.Common, скорее всего 
+        // реальную логику вы реализуете в проекте Infrastructure. 
+        // Пока что можно сделать “заглушки” (throw new NotImplementedException()), 
+        // чтобы избавиться от ошибок компиляции.
+        public Task<bool> CreateAsync(T element)
         {
-            _repository = repository ?? throw new ArgumentNullException(nameof(repository));
+            throw new NotImplementedException();
         }
 
-        public async Task<bool> CreateAsync(T element)
+        // 🔴 ЭТОТ МЕТОД БЫЛ ОТСУТСТВУЮЩИМ, ДОБАВЬТЕ ИХ ВСЕ НИЖЕ:
+        public Task<T> ReadAsync(Guid id)
         {
-            try
-            {
-                await _repository.AddAsync(element);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
+            throw new NotImplementedException();
         }
 
-        public async Task<T> ReadAsync(int id)
+        public Task<IEnumerable<T>> ReadAllAsync()
         {
-            return await _repository.GetByIdAsync(id);
+            throw new NotImplementedException();
         }
 
-        public async Task<IEnumerable<T>> ReadAllAsync()
+        public Task<IEnumerable<T>> ReadAllAsync(int page, int amount)
         {
-            return await _repository.GetAllAsync();
+            throw new NotImplementedException();
         }
 
-        public async Task<IEnumerable<T>> ReadAllAsync(int page, int amount)
+        public Task<bool> UpdateAsync(T element)
         {
-            var allItems = await _repository.GetAllAsync();
-            return allItems.Skip((page - 1) * amount).Take(amount);
+            throw new NotImplementedException();
         }
 
-        public async Task<bool> UpdateAsync(T element)
+        public Task<bool> RemoveAsync(T element)
         {
-            try
-            {
-                await _repository.UpdateAsync(element);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
+            throw new NotImplementedException();
         }
 
-        public async Task<bool> RemoveAsync(T element)
+        public Task<bool> SaveAsync()
         {
-            try
-            {
-                await _repository.DeleteAsync(element);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        public async Task<bool> SaveAsync()
-        {
-            return true;
+            throw new NotImplementedException();
         }
     }
 }
